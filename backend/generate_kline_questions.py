@@ -480,7 +480,17 @@ def save_to_db(questions):
 
 
 if __name__ == "__main__":
-    print("开始从 StockPillar API 拉取真实 K 线数据...")
-    questions = generate_questions()
-    print(f"\n共生成 {len(questions)} 道题目")
-    save_to_db(questions)
+    import traceback
+    try:
+        print("开始从 StockPillar API 拉取真实 K 线数据...")
+        questions = generate_questions()
+        print(f"\n共生成 {len(questions)} 道题目")
+        if len(questions) == 0:
+            print("⚠️  没有生成任何题目，可能是 API 不可达或数据不足")
+            print("   跳过题目生成，系统将使用 init_db 中的基础题目")
+        else:
+            save_to_db(questions)
+    except Exception as e:
+        print(f"❌ 生成题目失败: {e}")
+        traceback.print_exc()
+        print("   跳过题目生成，系统将使用 init_db 中的基础题目")
