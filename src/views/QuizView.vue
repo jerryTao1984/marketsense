@@ -522,17 +522,39 @@ onMounted(async () => {
 
   // 如果所有题都做对了，显示提示
   if (allQuestions.length === 0) {
-    questions.value = []
+    // 仍然调用 completeLevel 以解锁下一关
+    if (userStore.userId) {
+      const result: CompleteResponse = await completeLevel(
+        userStore.userId,
+        levelId.value,
+        0,
+        0
+      )
+      userStore.hearts = result.hearts
+      userStore.streakDays = result.streak_days
+      if (result.passed && result.next_unlocked) {
+        userStore.unlockLevel(categoryId.value, result.next_unlocked)
+      }
+      resultData.value = {
+        passed: result.passed,
+        correct_count: result.correct_count,
+        total_count: result.total_count,
+        next_unlocked: result.next_unlocked,
+        hearts: result.hearts,
+        streak_days: result.streak_days,
+      }
+    } else {
+      resultData.value = {
+        passed: true,
+        correct_count: 0,
+        total_count: 0,
+        next_unlocked: null,
+        hearts: userStore.hearts,
+        streak_days: userStore.streakDays,
+      }
+    }
     loading.value = false
     showResult.value = true
-    resultData.value = {
-      passed: true,
-      correct_count: 0,
-      total_count: 0,
-      next_unlocked: null,
-      hearts: userStore.hearts,
-      streak_days: userStore.streakDays,
-    }
   } else {
     questions.value = allQuestions
     loading.value = false
