@@ -268,6 +268,59 @@
   font-size: 16px;
 }
 
+.mode-tabs {
+  display: flex;
+  background: white;
+  padding: 0 16px;
+  border-bottom: 1px solid #eee;
+}
+
+.mode-tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  font-size: 14px;
+  color: #999;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s;
+}
+
+.mode-tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  font-weight: bold;
+}
+
+.no-questions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: #999;
+}
+
+.no-questions-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.no-questions-text {
+  font-size: 16px;
+  margin: 0 0 20px;
+}
+
+.no-questions-btn {
+  padding: 10px 24px;
+  border: 1px solid #667eea;
+  border-radius: 20px;
+  background: white;
+  color: #667eea;
+  font-size: 14px;
+  cursor: pointer;
+}
+
 .tag-wrong {
   display: inline-block;
   background: #fee;
@@ -307,11 +360,29 @@
       />
     </div>
 
+    <!-- Mode tabs -->
+    <div class="mode-tabs">
+      <div
+        class="mode-tab"
+        :class="{ active: mode === 'challenge' }"
+        @click="switchMode('challenge')"
+      >
+        挑战模式
+      </div>
+      <div
+        class="mode-tab"
+        :class="{ active: mode === 'review' }"
+        @click="switchMode('review')"
+      >
+        复习模式
+      </div>
+    </div>
+
     <!-- Loading -->
     <div v-if="loading" class="loading">加载题目中...</div>
 
     <!-- Question -->
-    <div v-else class="question-area">
+    <div v-else-if="questions.length > 0" class="question-area">
       <p class="question-title">
         {{ currentQuestion?.title }}
         <span v-if="isWrongQuestion(currentQuestion?.id)" class="tag-wrong">曾做错</span>
@@ -350,9 +421,16 @@
         </div>
         <div>{{ feedbackText }}</div>
         <button class="next-btn" @click="goNext">
-          {{ isLast ? '查看结果' : '下一题' }}
+          {{ isLast ? (mode === 'challenge' ? '查看结果' : '复习完毕') : '下一题' }}
         </button>
       </div>
+    </div>
+
+    <!-- No questions message -->
+    <div v-else class="no-questions">
+      <div class="no-questions-icon">🎉</div>
+      <p class="no-questions-text">本关题目已全部答对！</p>
+      <button class="no-questions-btn" @click="switchMode('review')">复习所有题目</button>
     </div>
 
     <!-- No hearts overlay -->
@@ -401,6 +479,7 @@ const levelId = computed(() => route.params.levelId as string)
 
 const questions = ref<Question[]>([])
 const loading = ref(true)
+const mode = ref<'challenge' | 'review'>('challenge')
 
 // 已做过的题目 ID
 const doneQuestionIds = ref<Set<string>>(new Set())
@@ -433,7 +512,7 @@ const isLast = computed(() => currentIndex.value >= questions.value.length - 1)
 
 async function selectAnswer(value: string) {
   if (answered.value) return
-  if (!userStore.hasHeart) {
+  if (mode.value === 'challenge' && !userStore.hasHeart) {
     showNoHearts.value = true
     return
   }
@@ -449,13 +528,26 @@ async function selectAnswer(value: string) {
 
   if (isCorrect.value) {
     correctCount.value++
-  } else {
+  } else if (mode.value === 'challenge') {
     userStore.deductHeart()
   }
 }
 
 async function goNext() {
   if (isLast.value) {
+    // 复习模式：不结算，直接返回
+    if (mode.value === 'review') {
+      showResult.value = true
+      resultData.value = {
+        passed: true,
+        correct_count: correctCount.value,
+        total_count: questions.value.length,
+        next_unlocked: null,
+        hearts: userStore.hearts,
+        streak_days: userStore.streakDays,
+      }
+      return
+    }
     // Finish quiz - call backend to complete level
     const result: CompleteResponse = await completeLevel(
       userStore.userId,
@@ -500,6 +592,11 @@ function goNextLevel() {
   }
 }
 
+function switchMode(newMode: 'challenge' | 'review') {
+  mode.value = newMode
+  loadQuestions()
+}
+
 function isWrongQuestion(id: string | undefined) {
   return id && wrongQuestionIds.value.has(id)
 }
@@ -530,18 +627,21 @@ async function loadQuestions() {
   let allQuestions = await getLevelQuestions(currentLevelId)
 
   if (userStore.userId) {
-    const doneIds = await getDoneQuestions(userStore.userId, currentLevelId)
-    allQuestions = allQuestions.filter(q => !doneIds.includes(q.id))
-
     const wrongs = await getWrongAnswers(userStore.userId, currentLevelId)
     for (const w of wrongs) {
       wrongQuestionIds.value.add(w.question_id)
       doneQuestionIds.value.add(w.question_id)
     }
+
+    // 挑战模式：过滤已答对的题目；复习模式：显示全部
+    if (mode.value === 'challenge') {
+      const doneIds = await getDoneQuestions(userStore.userId, currentLevelId)
+      allQuestions = allQuestions.filter(q => !doneIds.includes(q.id))
+    }
   }
 
   if (allQuestions.length === 0) {
-    if (userStore.userId) {
+    if (mode.value === 'challenge' && userStore.userId) {
       const result: CompleteResponse = await completeLevel(
         userStore.userId,
         currentLevelId,
