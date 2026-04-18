@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+# 动态生成的 K 线图片（部署时自动生成）
+backend/public/assets/kline/*.png

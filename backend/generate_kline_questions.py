@@ -14,7 +14,13 @@ ssl._create_default_https_context = ssl._create_unverified_context
 
 API_KEY = "sk_2645c49d31e6769badc17b20758c91d506d0e532dba00ac8475a0364eb541d2a"
 API_URL = "https://layercake.com.cn/stockpillar/api/skill/v1"
-DB_PATH = "shipanya.db"
+# Docker 容器用 /data，本地开发用当前目录
+DB_PATH = os.environ.get("DB_PATH", "shipanya.db")
+# 输出图片路径：Docker 容器内 backend 下的 public 目录，本地开发用上层 public
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'public', 'assets', 'kline')
+if not os.path.isdir(OUTPUT_DIR):
+    OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'kline')
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # 选取多行业、不同发展阶段的 A 股
 STOCKS = [
@@ -372,12 +378,15 @@ def generate_questions():
                            f"RSI={rsi_str}，"
                            f"短期方向不明确。")
 
+        # 20日K线图作为题目配图
+        img_url = f"/assets/kline/kline_{code.replace('.', '_')}_20d.png"
+
         questions.append((
-            f"kg_q{q_id}", "P1", "text",
+            f"kg_q{q_id}", "P1", "image",
             f"{name}（{code}）基于近期数据：5日{vol_trend}{change_5d:+.1f}%，"
             f"RSI={rsi_str}，"
             f"请判断下周可能走势？",
-            None,
+            img_url,
             json.dumps([
                 {"label": "📈 偏强看涨", "value": "A"},
                 {"label": "📉 偏弱看跌", "value": "B"},
@@ -394,6 +403,8 @@ def generate_questions():
             dist_to_high = (high_20 - latest_close) / latest_close * 100
             dist_to_low = (latest_close - low_20) / latest_close * 100
 
+            img_url = f"/assets/kline/kline_{code.replace('.', '_')}_20d.png"
+
             if dist_to_high < 3:
                 correct = "A"
                 expl = f"当前价{latest_close:.2f}距20日高点{high_20:.2f}仅{dist_to_high:.1f}%，接近前期压力位。"
@@ -406,11 +417,11 @@ def generate_questions():
                        f"距高点{dist_to_high:.1f}%，距低点{dist_to_low:.1f}%。"
 
             questions.append((
-                f"kg_q{q_id}", "P3", "text",
+                f"kg_q{q_id}", "P3", "image",
                 f"{name}（{code}）当前价 {latest_close:.2f} 元，"
                 f"20日最高 {high_20:.2f} 元，最低 {low_20:.2f} 元，"
                 f"价格当前位置？",
-                None,
+                img_url,
                 json.dumps([
                     {"label": "接近压力位（距20日高点<3%）", "value": "A"},
                     {"label": "接近支撑位（距20日低点<3%）", "value": "B"},
@@ -424,10 +435,12 @@ def generate_questions():
         if ma20 and ma60:
             q_id += 1
             mid_trend = "MA20>MA60，中期偏多" if ma20 > ma60 else "MA20<MA60，中期偏空"
+            img_url = f"/assets/kline/kline_{code.replace('.', '_')}_20d.png"
+
             questions.append((
-                f"kg_q{q_id}", "P2", "text",
+                f"kg_q{q_id}", "P2", "image",
                 f"{name}（{code}）MA20={ma20:.2f}，MA60={ma60:.2f}，中期趋势判断？",
-                None,
+                img_url,
                 json.dumps([
                     {"label": "中期偏多（MA20在MA60上方）", "value": "A"},
                     {"label": "中期偏空（MA20在MA60下方）", "value": "B"},

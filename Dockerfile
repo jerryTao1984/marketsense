@@ -14,8 +14,15 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 安装中文字体（matplotlib K线图标题需要）
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk && rm -rf /var/lib/apt/lists/*
+
 # 复制后端代码（含 videos/ 和 public/assets/kline/）
 COPY backend/ ./backend/
+
+# 复制启动脚本
+COPY startup.sh ./
+RUN chmod +x startup.sh
 
 # 复制前端构建产物到 dist
 COPY --from=frontend-builder /app/frontend/dist ./dist
@@ -26,4 +33,4 @@ RUN mkdir -p /data
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "cd /app/backend && python3 main.py"]
+CMD ["./startup.sh"]

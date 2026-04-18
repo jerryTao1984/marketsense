@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" width="200" height="300">
+  <text x="100" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">锤子线</text>
+  <line x1="100" y1="60" x2="100" y2="240" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+  <!-- 几乎没有上影线 -->
+  <!-- 实体小 -->
+  <rect x="85" y="90" width="30" height="20" fill="#ef4444" rx="2"/>
+  <!-- 下影线很长 -->
+  <line x1="100" y1="110" x2="100" y2="220" stroke="#ef4444" stroke-width="3"/>
+  <text x="100" y="260" text-anchor="middle" font-size="12" fill="#666">下影线很长，实体小</text>
+</svg>
