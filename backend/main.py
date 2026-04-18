@@ -627,9 +627,17 @@ try:
         app.mount("/videos", StaticFiles(directory=_videos_dir), name="videos")
         print(f"✅ Serving videos from: {_videos_dir}")
 
-    # 挂载 K 线图片（本地开发用 public/assets/kline）
-    _kline_dir = os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'kline')
-    if os.path.isdir(_kline_dir):
+    # 挂载 K 线图片（本地开发用 ../public/assets/kline，Docker 用 backend 内相对路径）
+    _kline_candidates = [
+        os.path.join(os.path.dirname(__file__), 'public', 'assets', 'kline'),  # Docker
+        os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'kline'),  # 本地开发
+    ]
+    _kline_dir = None
+    for p in _kline_candidates:
+        if os.path.isdir(p):
+            _kline_dir = p
+            break
+    if _kline_dir:
         app.mount("/assets/kline", StaticFiles(directory=_kline_dir), name="kline")
         print(f"✅ Serving kline images from: {_kline_dir}")
 
