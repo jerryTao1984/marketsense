@@ -14,16 +14,20 @@ import matplotlib.dates as mdates
 from datetime import datetime, timedelta
 import numpy as np
 
-# 设置中文字体
-plt.rcParams['font.sans-serif'] = ['PingFang SC', 'Arial Unicode MS', 'STHeiti', 'SimHei']
+# 设置中文字体（Docker 用 Noto，本地用 PingFang）
+plt.rcParams['font.sans-serif'] = ['Noto Sans CJK SC', 'PingFang SC', 'Arial Unicode MS', 'STHeiti', 'SimHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
 API_KEY = "sk_2645c49d31e6769badc17b20758c91d506d0e532dba00ac8475a0364eb541d2a"
 API_URL = "https://layercake.com.cn/stockpillar/api/skill/v1"
-DB_PATH = "shipanya.db"
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'kline')
+# Docker 容器用 /data，本地开发用当前目录
+DB_PATH = os.environ.get("DB_PATH", "shipanya.db")
+# 输出到 backend/public/assets/kline（Docker 和 本地都兼容）
+OUTPUT_DIR = os.path.join(os.path.dirname(__file__), 'public', 'assets', 'kline')
+if not os.path.isdir(OUTPUT_DIR):
+    OUTPUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'kline')
 
 STOCKS = [
     ("600519.SH", "贵州茅台"), ("000858.SZ", "五粮液"),
@@ -205,7 +209,13 @@ def level_in_predict(q_id):
 
 
 if __name__ == "__main__":
-    print("生成 K 线图...")
-    generate_all_kline_images()
-    print("\n更新数据库图片链接...")
-    update_db_image_urls()
+    import traceback
+    try:
+        print("生成 K 线图...")
+        generate_all_kline_images()
+        print("\n更新数据库图片链接...")
+        update_db_image_urls()
+    except Exception as e:
+        print(f"❌ 生成 K 线图失败: {e}")
+        traceback.print_exc()
+        exit(1)
