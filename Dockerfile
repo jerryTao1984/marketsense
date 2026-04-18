@@ -16,6 +16,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ ./backend/
 
+# 复制视频文件
+COPY backend/videos/ ./backend/videos/
+
 # 复制前端构建产物到 dist
 COPY --from=frontend-builder /app/frontend/dist ./dist
 

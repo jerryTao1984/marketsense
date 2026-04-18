@@ -224,12 +224,17 @@ async def get_categories():
             }[cat]
             categories[cat] = {**category_info, 'levels': []}
 
-        categories[cat]['levels'].append({
+        level_data = {
             'id': row["id"],
             'name': row["name"],
             'description': row["description"],
             'sort_order': row["sort_order"],
-        })
+        }
+        if cat == 'trading':
+            video_url = TRADING_VIDEOS.get(row["id"])
+            if video_url:
+                level_data['video_url'] = video_url
+        categories[cat]['levels'].append(level_data)
 
     conn.close()
     return list(categories.values())
@@ -605,9 +610,22 @@ async def get_history(user_id: int, level_id: str = None):
 
 # ===== 生产模式：FastAPI 直接 serve 前端静态文件 =====
 # Docker 部署时只需一个端口 8000
+
+# 交易法则关卡视频
+TRADING_VIDEOS = {
+    'T1': '/videos/解构海豚交易法.mp4',
+    'T2': '/videos/海龟交易系统：过时了还是被误解了？.mp4',
+}
+
 try:
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
+
+    # 挂载视频目录
+    _videos_dir = os.path.join(os.path.dirname(__file__), 'videos')
+    if os.path.isdir(_videos_dir):
+        app.mount("/videos", StaticFiles(directory=_videos_dir), name="videos")
+        print(f"✅ Serving videos from: {_videos_dir}")
 
     # 支持多种路径：Docker 容器 /app/dist 或 本地开发 ../dist
     _dist_candidates = [

@@ -18,6 +18,7 @@ export interface LevelInfo {
   name: string
   description: string
   sort_order: number
+  video_url?: string
 }
 
 export interface Category {

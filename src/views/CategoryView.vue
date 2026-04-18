@@ -36,7 +36,7 @@
   margin-bottom: 12px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
   transition: all 0.2s;
 }
@@ -64,6 +64,7 @@
 
 .level-info {
   flex: 1;
+  min-width: 0;
 }
 
 .level-name {
@@ -79,8 +80,42 @@
   margin: 0;
 }
 
+.video-btn {
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #e65100;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.video-btn:active {
+  background: #ffe0b2;
+}
+
 .level-status {
   font-size: 24px;
+  flex-shrink: 0;
+}
+
+.video-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 8px;
+  box-sizing: border-box;
+}
+
+.video-container video {
+  width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
 }
 
 .loading {
@@ -120,11 +155,27 @@
           <p class="level-name">{{ level.name }}</p>
           <p class="level-desc">{{ level.description }}</p>
         </div>
+        <button
+          v-if="level.video_url && !isLevelLocked(level.id)"
+          class="video-btn"
+          @click.stop="openVideo(level.video_url)"
+        >
+          📹 视频
+        </button>
         <div class="level-status">
           {{ isLevelLocked(level.id) ? '🔒' : '▶️' }}
         </div>
       </div>
     </div>
+
+    <van-popup v-model:show="showVideo" position="bottom" round :style="{ height: '80%' }">
+      <div class="video-header">
+        <van-icon name="cross" @click="closeVideo" size="20" />
+      </div>
+      <div class="video-container">
+        <video ref="videoPlayer" controls autoplay :src="currentVideoUrl" />
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -140,6 +191,24 @@ const userStore = useUserStore()
 
 const category = ref<Category | null>(null)
 const loading = ref(true)
+
+const showVideo = ref(false)
+const currentVideoUrl = ref('')
+const videoPlayer = ref<HTMLVideoElement | null>(null)
+
+function openVideo(url: string) {
+  currentVideoUrl.value = url
+  showVideo.value = true
+}
+
+function closeVideo() {
+  showVideo.value = false
+  if (videoPlayer.value) {
+    videoPlayer.value.pause()
+    videoPlayer.value.currentTime = 0
+  }
+  currentVideoUrl.value = ''
+}
 
 const categoryColor = computed(() => {
   const map: Record<string, string> = { basics: '#4CAF50', trading: '#2196F3', kline: '#FF9800', predict: '#9C27B0' }
