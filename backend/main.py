@@ -613,8 +613,8 @@ async def get_history(user_id: int, level_id: str = None):
 
 # 交易法则关卡视频
 TRADING_VIDEOS = {
-    'T1': '/videos/解构海豚交易法.mp4',
-    'T2': '/videos/海龟交易系统：过时了还是被误解了？.mp4',
+    'T1': '/videos/dolphin_trading.mp4',
+    'T2': '/videos/turtle_trading.mp4',
 }
 
 try:
@@ -626,6 +626,12 @@ try:
     if os.path.isdir(_videos_dir):
         app.mount("/videos", StaticFiles(directory=_videos_dir), name="videos")
         print(f"✅ Serving videos from: {_videos_dir}")
+
+    # 挂载 K 线图片（本地开发用 public/assets/kline）
+    _kline_dir = os.path.join(os.path.dirname(__file__), '..', 'public', 'assets', 'kline')
+    if os.path.isdir(_kline_dir):
+        app.mount("/assets/kline", StaticFiles(directory=_kline_dir), name="kline")
+        print(f"✅ Serving kline images from: {_kline_dir}")
 
     # 支持多种路径：Docker 容器 /app/dist 或 本地开发 ../dist
     _dist_candidates = [
