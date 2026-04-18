@@ -38,7 +38,14 @@
       "Bash(ssh -T git@github.com)",
       "Bash(ssh -T git@github.com -p 443)",
       "Bash(gh auth *)",
-      "Bash(GIT_ASKPASS=true git push -u origin main)"
+      "Bash(GIT_ASKPASS=true git push -u origin main)",
+      "Bash(GIT_TRACE=1 git push -u origin main)",
+      "Bash(security delete-internet-password *)",
+      "Bash(git pack-refs *)",
+      "Bash(git commit *)",
+      "Bash(nohup python3 *)",
+      "Bash(nohup npx *)",
+      "Read(//tmp/**)"
     ]
   }
 }
