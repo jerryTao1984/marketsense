@@ -1,29 +1,27 @@
 #!/bin/bash
 set -e
 
-# 初始化数据库并播种基础题目
+export DB_PATH="/data/shipanya.db"
 cd /app/backend
+
+# 初始化数据库并播种基础题目
 python3 init_db.py
 
-# 如果还没有 K 线动态题目，生成它们（使用 DB_PATH 环境变量）
-export DB_PATH="/data/shipanya.db"
-python3 -c "
-import sqlite3, os
-db = os.environ.get('DB_PATH', '/data/shipanya.db')
-conn = sqlite3.connect(db)
+# 检查是否已有 K 线动态题目
+COUNT=$(python3 -c "
+import sqlite3
+conn = sqlite3.connect('${DB_PATH}')
 c = conn.cursor()
 c.execute(\"SELECT COUNT(*) FROM questions WHERE id LIKE 'kg_q%'\")
-count = c.fetchone()[0]
+print(c.fetchone()[0])
 conn.close()
-if count == 0:
-    print('No K-line questions found, generating from API...')
-    exit(1)
-print(f'Already have {count} K-line questions, skipping generation.')
-" 2>/dev/null
+")
 
-if [ $? -ne 0 ]; then
-    cd /app/backend
+if [ "$COUNT" -eq 0 ]; then
+    echo "No K-line questions found, generating from API..."
     python3 generate_kline_questions.py || echo "Warning: K-line generation failed, continuing anyway"
+else
+    echo "Already have $COUNT K-line questions, skipping generation."
 fi
 
 # 启动 FastAPI 服务
