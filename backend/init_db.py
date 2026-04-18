@@ -103,12 +103,8 @@ def init_db():
     conn.close()
 
 
-def seed_levels_and_questions():
-    """写入关卡和题目数据"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    # ===== 关卡数据 =====
+def get_seed_data():
+    """返回所有关卡和题目数据，不操作数据库"""
     levels = [
         # 基础概念
         ('L1', 'basics', '市场基础', 'A股市场基本规则与常识', 1),
@@ -131,12 +127,6 @@ def seed_levels_and_questions():
         ('P3', 'predict', '支撑压力预测', '判断关键支撑位和压力位', 3),
     ]
 
-    cursor.executemany(
-        'INSERT OR IGNORE INTO levels (id, category_id, name, description, sort_order) VALUES (?, ?, ?, ?, ?)',
-        levels
-    )
-
-    # ===== 题目数据 =====
     questions = []
 
     # ---- 基础概念 L1: 市场基础 ----
@@ -646,16 +636,29 @@ def seed_levels_and_questions():
     ]):
         questions.append((*q, i))
 
-    # 批量插入题目
+
+    return levels, questions
+
+
+def seed_levels_and_questions():
+    """写入关卡和题目数据到数据库"""
+    levels, questions = get_seed_data()
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
     cursor.executemany(
-        'INSERT OR IGNORE INTO questions (id, level_id, type, title, image_url, options_json, answer, explanation, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT OR IGNORE INTO levels (id, category_id, name, description, sort_order) VALUES (?,?,?,?,?)',
+        levels
+    )
+    cursor.executemany(
+        'INSERT OR IGNORE INTO questions (id, level_id, type, title, image_url, options_json, answer, explanation, sort_order) VALUES (?,?,?,?,?,?,?,?,?)',
         questions
     )
-
     conn.commit()
     conn.close()
     print(f"Database initialized at {DB_PATH}")
     print(f"Inserted {len(levels)} levels and {len(questions)} questions")
+
+
 
 
 if __name__ == '__main__':

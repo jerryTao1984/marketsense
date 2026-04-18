@@ -79,8 +79,11 @@ export const useUserStore = defineStore('user', () => {
         hearts.value = profile.hearts
         streakDays.value = profile.streak_days
         nickname.value = profile.nickname || nickname.value
-        // 重新登录获取最新关卡解锁状态
-        await loginWithPhone(phone.value)
+        // 同步最新关卡解锁状态（不重新登录，避免覆盖 hearts）
+        const saved = loadUnlockedLevels()
+        if (saved) {
+          unlockedLevels.value = saved
+        }
       } catch {
         // 静默失败，不影响登录态
       }

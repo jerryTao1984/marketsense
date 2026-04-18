@@ -116,10 +116,6 @@
             <span>{{ userStore.nickname || '我的' }}</span>
           </div>
           <div class="stat-item">
-            <span>❤️</span>
-            <span>{{ userStore.hearts }}/{{ userStore.maxHearts }}</span>
-          </div>
-          <div class="stat-item">
             <span>🔥</span>
             <span>{{ userStore.streakDays }} 天</span>
           </div>

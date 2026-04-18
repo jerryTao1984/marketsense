@@ -353,10 +353,16 @@ async def complete_level(data: LevelComplete):
             ON CONFLICT(user_id, level_id) DO UPDATE SET is_completed=1, best_score=max(excluded.best_score, user_progress.best_score), completed_at=CURRENT_TIMESTAMP
         """, (data.user_id, data.level_id, data.correct_count))
 
-        # 更新 streak
+        # 更新 streak（同一天只 +1）
         cursor.execute("""
-            UPDATE users SET streak_days = streak_days + 1 WHERE id = ?
+            SELECT COUNT(*) as cnt FROM user_progress
+            WHERE user_id = ? AND DATE(completed_at) = DATE('now')
         """, (data.user_id,))
+        today_completions = cursor.fetchone()["cnt"]
+        if today_completions == 0:
+            cursor.execute("""
+                UPDATE users SET streak_days = streak_days + 1 WHERE id = ?
+            """, (data.user_id,))
 
         # 查找下一关
         cursor.execute("""
@@ -564,6 +570,66 @@ async def get_done_questions(user_id: int, level_id: str = None):
     rows = cursor.fetchall()
     conn.close()
     return [row["question_id"] for row in rows]
+
+
+@app.get("/api/v1/user/attempted-questions")
+async def get_attempted_questions(user_id: int, level_id: str = None):
+    """获取用户所有答过的题目ID列表（无论对错，用于复习模式）"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT DISTINCT question_id FROM answer_history
+        WHERE user_id = ?
+    """
+    params = [user_id]
+    if level_id:
+        query += " AND level_id = ?"
+        params.append(level_id)
+
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+    return [row["question_id"] for row in rows]
+
+
+@app.get("/api/v1/user/review-questions")
+async def get_review_questions(user_id: int, level_id: str = None):
+    """获取用户所有做过的题目详情（无论对错，用于复习模式）"""
+    conn = get_db()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT DISTINCT q.id, q.title, q.options_json, q.answer, q.explanation,
+               q.level_id, q.category_id, q.type, q.image_url
+        FROM answer_history ah
+        JOIN questions q ON ah.question_id = q.id
+        WHERE ah.user_id = ?
+    """
+    params = [user_id]
+    if level_id:
+        query += " AND ah.level_id = ?"
+        params.append(level_id)
+
+    query += " ORDER BY q.id"
+    cursor.execute(query, params)
+    rows = cursor.fetchall()
+    conn.close()
+
+    results = []
+    for row in rows:
+        results.append({
+            "id": row["id"],
+            "type": row["type"],
+            "title": row["title"],
+            "image_url": row["image_url"],
+            "options": json.loads(row["options_json"]),
+            "answer": row["answer"],
+            "explanation": row["explanation"],
+            "level_id": row["level_id"],
+            "category_id": row["category_id"],
+        })
+    return results
 
 
 # ===== 11. 做题记录 =====

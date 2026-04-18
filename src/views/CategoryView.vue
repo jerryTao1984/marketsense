@@ -101,14 +101,22 @@
   flex-shrink: 0;
 }
 
+.video-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  cursor: pointer;
+  color: #999;
+}
+
 .video-container {
   width: 100%;
-  height: 100%;
+  height: calc(80vh - 40px);
   display: flex;
   align-items: center;
   justify-content: center;
   background: #000;
-  padding: 8px;
+  padding: 0;
   box-sizing: border-box;
 }
 
@@ -180,7 +188,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getCategories, type Category, type LevelInfo } from '../api'
@@ -199,6 +207,12 @@ const videoPlayer = ref<HTMLVideoElement | null>(null)
 function openVideo(url: string) {
   currentVideoUrl.value = url
   showVideo.value = true
+  nextTick(() => {
+    if (videoPlayer.value) {
+      videoPlayer.value.load()
+      videoPlayer.value.play().catch(() => {})
+    }
+  })
 }
 
 function closeVideo() {

@@ -214,51 +214,7 @@
   color: #666;
 }
 
-/* No hearts overlay */
-.no-hearts-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 101;
-}
-
-.no-hearts-card {
-  background: white;
-  border-radius: 20px;
-  padding: 32px 24px;
-  text-align: center;
-  width: 80%;
-  max-width: 300px;
-}
-
-.no-hearts-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.no-hearts-text {
-  font-size: 16px;
-  color: #333;
-  margin: 0 0 20px;
-}
-
-.refill-btn {
-  padding: 12px 32px;
-  border: none;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
+/* Loading */
 .loading {
   display: flex;
   justify-content: center;
@@ -428,18 +384,13 @@
 
     <!-- No questions message -->
     <div v-else class="no-questions">
-      <div class="no-questions-icon">🎉</div>
-      <p class="no-questions-text">本关题目已全部答对！</p>
-      <button class="no-questions-btn" @click="switchMode('review')">复习所有题目</button>
-    </div>
-
-    <!-- No hearts overlay -->
-    <div v-if="showNoHearts" class="no-hearts-overlay">
-      <div class="no-hearts-card">
-        <div class="no-hearts-icon">💔</div>
-        <p class="no-hearts-text">体力已耗尽！<br />恢复体力继续挑战</p>
-        <button class="refill-btn" @click="refillHearts">❤️ 恢复体力</button>
-      </div>
+      <div class="no-questions-icon">{{ mode === 'review' ? '📚' : '🎉' }}</div>
+      <p class="no-questions-text">
+        {{ mode === 'review' ? '还没有做过的题目' : '本关题目已全部答对！' }}
+      </p>
+      <button class="no-questions-btn" @click="mode === 'review' ? switchMode('challenge') : switchMode('review')">
+        {{ mode === 'review' ? '去挑战' : '复习所有题目' }}
+      </button>
     </div>
 
     <!-- Result overlay -->
@@ -467,7 +418,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { getLevelQuestions, checkAnswer, completeLevel, getWrongAnswers, getDoneQuestions } from '../api'
+import { getLevelQuestions, checkAnswer, completeLevel, getWrongAnswers, getDoneQuestions, getAttemptedQuestions } from '../api'
 import type { Question, CheckResponse, CompleteResponse } from '../api'
 
 const route = useRoute()
@@ -478,6 +429,7 @@ const categoryId = computed(() => route.params.categoryId as string)
 const levelId = computed(() => route.params.levelId as string)
 
 const questions = ref<Question[]>([])
+const allLevelQuestions = ref<Question[]>([]) // 缓存该关卡所有题目
 const loading = ref(true)
 const mode = ref<'challenge' | 'review'>('challenge')
 
@@ -494,7 +446,6 @@ const correctAnswer = ref('')
 const feedbackText = ref('')
 const correctCount = ref(0)
 const showResult = ref(false)
-const showNoHearts = ref(false)
 const resultData = ref<CompleteResponse | null>(null)
 
 const currentQuestion = computed(() => questions.value[currentIndex.value])
@@ -512,15 +463,10 @@ const isLast = computed(() => currentIndex.value >= questions.value.length - 1)
 
 async function selectAnswer(value: string) {
   if (answered.value) return
-  if (mode.value === 'challenge' && !userStore.hasHeart) {
-    showNoHearts.value = true
-    return
-  }
 
   selected.value = value
   answered.value = true
 
-  // Call backend to check answer
   const result: CheckResponse = await checkAnswer(currentQuestion.value.id, value, userStore.userId)
   isCorrect.value = result.is_correct
   correctAnswer.value = result.correct_answer
@@ -528,8 +474,6 @@ async function selectAnswer(value: string) {
 
   if (isCorrect.value) {
     correctCount.value++
-  } else if (mode.value === 'challenge') {
-    userStore.deductHeart()
   }
 }
 
@@ -537,15 +481,7 @@ async function goNext() {
   if (isLast.value) {
     // 复习模式：不结算，直接返回
     if (mode.value === 'review') {
-      showResult.value = true
-      resultData.value = {
-        passed: true,
-        correct_count: correctCount.value,
-        total_count: questions.value.length,
-        next_unlocked: null,
-        hearts: userStore.hearts,
-        streak_days: userStore.streakDays,
-      }
+      router.back()
       return
     }
     // Finish quiz - call backend to complete level
@@ -566,22 +502,18 @@ async function goNext() {
 
     showResult.value = true
   } else {
-    currentIndex.value++
+    // 先重置答题状态，再切换题目，避免短暂显示上一题的反馈
     selected.value = ''
     answered.value = false
     isCorrect.value = false
     correctAnswer.value = ''
     feedbackText.value = ''
+    currentIndex.value++
   }
 }
 
 function goBack() {
   router.push('/')
-}
-
-async function refillHearts() {
-  await userStore.refillHearts()
-  showNoHearts.value = false
 }
 
 function goNextLevel() {
@@ -607,6 +539,7 @@ function isDoneQuestion(id: string | undefined) {
 
 // 加载题目逻辑抽成函数，支持路由变化时重新加载
 let loadingTask: Promise<void> | null = null
+
 async function loadQuestions() {
   const currentLevelId = route.params.levelId as string
   const currentCategoryId = route.params.categoryId as string
@@ -631,23 +564,34 @@ async function loadQuestions() {
   doneQuestionIds.value.clear()
   loading.value = true
 
-  let allQuestions = await getLevelQuestions(currentLevelId)
+  // 只在缓存为空时从 API 获取
+  if (allLevelQuestions.value.length === 0) {
+    allLevelQuestions.value = await getLevelQuestions(currentLevelId)
+  }
+
+  // 基于缓存过滤
+  let filtered = [...allLevelQuestions.value]
 
   if (userStore.userId) {
-    const wrongs = await getWrongAnswers(userStore.userId, currentLevelId)
-    for (const w of wrongs) {
-      wrongQuestionIds.value.add(w.question_id)
-      doneQuestionIds.value.add(w.question_id)
-    }
+    // 并行获取所有需要的数据
+    const [wrongs, doneResult, attemptedResult] = await Promise.all([
+      getWrongAnswers(userStore.userId, currentLevelId),
+      getDoneQuestions(userStore.userId, currentLevelId),
+      getAttemptedQuestions(userStore.userId, currentLevelId),
+    ])
 
-    // 挑战模式：过滤已答对的题目；复习模式：显示全部
+    // 更新 reactive 状态
+    wrongQuestionIds.value = new Set(wrongs.map(w => w.question_id))
+    doneQuestionIds.value = new Set(wrongs.map(w => w.question_id))
+
     if (mode.value === 'challenge') {
-      const doneIds = await getDoneQuestions(userStore.userId, currentLevelId)
-      allQuestions = allQuestions.filter(q => !doneIds.includes(q.id))
+      filtered = filtered.filter(q => !doneResult.includes(q.id))
+    } else {
+      filtered = filtered.filter(q => attemptedResult.includes(q.id))
     }
   }
 
-  if (allQuestions.length === 0) {
+  if (filtered.length === 0) {
     if (mode.value === 'challenge' && userStore.userId) {
       const result: CompleteResponse = await completeLevel(
         userStore.userId,
@@ -681,7 +625,7 @@ async function loadQuestions() {
     loading.value = false
     showResult.value = true
   } else {
-    questions.value = allQuestions
+    questions.value = filtered
     loading.value = false
   }
   loadingTask = null
@@ -690,14 +634,10 @@ async function loadQuestions() {
 onMounted(loadQuestions)
 
 // 路由变化时重新加载（支持"下一关"导航）
-watch(() => route.params.levelId, async (newVal, oldVal) => {
-  if (newVal !== oldVal) {
+watch(() => route.params.levelId, (newVal, oldVal) => {
+  if (newVal && newVal !== oldVal) {
+    allLevelQuestions.value = [] // 清空缓存
     loadQuestions()
   }
-})
-
-// 路由变化时重新加载（支持"下一关"导航）
-watch(() => route.params.levelId, () => {
-  loadQuestions()
 })
 </script>

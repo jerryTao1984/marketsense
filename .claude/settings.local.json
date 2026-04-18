@@ -45,7 +45,11 @@
       "Bash(git commit *)",
       "Bash(nohup python3 *)",
       "Bash(nohup npx *)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(docker build *)",
+      "Bash(git checkout *)",
+      "Bash(npx playwright *)",
+      "Bash(pkill -f \"vite\")"
     ]
   }
 }

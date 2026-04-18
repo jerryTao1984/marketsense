@@ -148,6 +148,24 @@ export async function getDoneQuestions(userId: number, levelId?: string): Promis
   return res.json()
 }
 
+export async function getReviewQuestions(userId: number, levelId?: string): Promise<Question[]> {
+  const url = levelId
+    ? `${API_BASE}/user/review-questions?user_id=${userId}&level_id=${levelId}`
+    : `${API_BASE}/user/review-questions?user_id=${userId}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Review questions fetch failed: ${res.status}`)
+  return res.json()
+}
+
+export async function getAttemptedQuestions(userId: number, levelId?: string): Promise<string[]> {
+  const url = levelId
+    ? `${API_BASE}/user/attempted-questions?user_id=${userId}&level_id=${levelId}`
+    : `${API_BASE}/user/attempted-questions?user_id=${userId}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Attempted questions fetch failed: ${res.status}`)
+  return res.json()
+}
+
 export async function completeLevel(
   userId: number,
   levelId: string,

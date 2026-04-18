@@ -2,7 +2,7 @@
   <div class="review-page">
     <div class="review-header">
       <van-icon name="arrow-left" size="20" @click="$router.back()" />
-      <span>错题复习 - {{ getLevelName(levelId) }}</span>
+      <span>题目复习 - {{ getLevelName(levelId) }}</span>
     </div>
 
     <div v-if="questions.length > 0 && !showResult" class="quiz-content">
@@ -58,7 +58,7 @@
       </div>
     </div>
 
-    <van-empty v-if="questions.length === 0 && !loading" description="该关卡暂无错题" />
+    <van-empty v-if="questions.length === 0 && !loading" description="该关卡暂无做题记录" />
   </div>
 </template>
 
@@ -66,7 +66,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { getWrongAnswers, getLevelQuestions, type WrongAnswerItem, type Question } from '../api'
+import { getReviewQuestions, type Question } from '../api'
 
 const route = useRoute()
 const userStore = useUserStore()
@@ -123,18 +123,17 @@ function nextQuestion() {
 }
 
 onMounted(async () => {
-  const wrongs = await getWrongAnswers(userStore.userId, levelId)
-  if (wrongs.length > 0) {
-    // 用错题构建复习题目
-    questions.value = wrongs.map(w => ({
-      id: w.question_id,
-      type: 'text' as const,
-      title: w.title,
-      options: w.options,
-      _correct: w.correct_answer,
-      explanation: w.explanation,
+  const done = await getReviewQuestions(userStore.userId, levelId)
+  if (done.length > 0) {
+    questions.value = done.map(q => ({
+      id: q.id,
+      type: q.type,
+      title: q.title,
+      image_url: q.image_url,
+      options: q.options,
+      _correct: q.answer,
+      explanation: q.explanation,
     }))
-    // 打乱顺序
     questions.value.sort(() => Math.random() - 0.5)
   }
   loading.value = false
