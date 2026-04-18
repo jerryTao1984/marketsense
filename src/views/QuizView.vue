@@ -346,7 +346,7 @@
       >
         <div class="feedback-label">
           {{ isCorrect ? '✅ 回答正确！' : '❌ 回答错误' }}
-          <span v-if="!isCorrect">正确答案：{{ correctAnswerLabel }}</span>
+          <span v-if="!isCorrect">正确答案：{{ correctAnswerText }}</span>
         </div>
         <div>{{ feedbackText }}</div>
         <button class="next-btn" @click="goNext">
@@ -412,7 +412,6 @@ const selected = ref('')
 const answered = ref(false)
 const isCorrect = ref(false)
 const correctAnswer = ref('')
-const correctAnswerLabel = ref('')
 const feedbackText = ref('')
 const correctCount = ref(0)
 const showResult = ref(false)
@@ -420,6 +419,13 @@ const showNoHearts = ref(false)
 const resultData = ref<CompleteResponse | null>(null)
 
 const currentQuestion = computed(() => questions.value[currentIndex.value])
+
+// 正确答案的文字（用于错误提示时显示）
+const correctAnswerText = computed(() => {
+  if (!correctAnswer.value || !currentQuestion.value) return correctAnswer.value
+  const opt = currentQuestion.value.options.find(o => o.value === correctAnswer.value)
+  return opt ? opt.label : correctAnswer.value
+})
 const progressPercent = computed(() =>
   questions.value.length > 0 ? Math.round(((currentIndex.value + 1) / questions.value.length) * 100) : 0
 )
@@ -440,7 +446,6 @@ async function selectAnswer(value: string) {
   isCorrect.value = result.is_correct
   correctAnswer.value = result.correct_answer
   feedbackText.value = result.explanation
-  correctAnswerLabel.value = result.correct_answer
 
   if (isCorrect.value) {
     correctCount.value++
@@ -474,7 +479,6 @@ async function goNext() {
     answered.value = false
     isCorrect.value = false
     correctAnswer.value = ''
-    correctAnswerLabel.value = ''
     feedbackText.value = ''
   }
 }
