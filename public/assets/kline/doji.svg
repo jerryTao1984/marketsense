@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 300" width="200" height="300">
+  <text x="100" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#333">十字星</text>
+  <line x1="100" y1="60" x2="100" y2="240" stroke="#ccc" stroke-width="1" stroke-dasharray="4"/>
+  <!-- 上影线 -->
+  <line x1="100" y1="80" x2="100" y2="140" stroke="#666" stroke-width="3"/>
+  <!-- 实体极小 -->
+  <rect x="90" y="140" width="20" height="6" fill="#888" rx="1"/>
+  <!-- 下影线 -->
+  <line x1="100" y1="146" x2="100" y2="210" stroke="#666" stroke-width="3"/>
+  <text x="100" y="260" text-anchor="middle" font-size="12" fill="#666">开盘≈收盘</text>
+</svg>
