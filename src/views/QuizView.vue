@@ -386,7 +386,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { getLevelQuestions, checkAnswer, completeLevel, getWrongAnswers, getDoneQuestions } from '../api'
@@ -508,36 +508,50 @@ function isDoneQuestion(id: string | undefined) {
   return id && doneQuestionIds.value.has(id)
 }
 
-onMounted(async () => {
-  let allQuestions = await getLevelQuestions(levelId.value)
+// 加载题目逻辑抽成函数，支持路由变化时重新加载
+async function loadQuestions() {
+  // 重置状态
+  currentIndex.value = 0
+  selected.value = ''
+  answered.value = false
+  isCorrect.value = false
+  correctAnswer.value = ''
+  feedbackText.value = ''
+  correctCount.value = 0
+  showResult.value = false
+  resultData.value = null
+  wrongQuestionIds.value.clear()
+  doneQuestionIds.value.clear()
+  loading.value = true
 
-  // 过滤已答对的题目（不再出现）
+  const currentLevelId = route.params.levelId as string
+  const currentCategoryId = route.params.categoryId as string
+
+  let allQuestions = await getLevelQuestions(currentLevelId)
+
   if (userStore.userId) {
-    const doneIds = await getDoneQuestions(userStore.userId, levelId.value)
+    const doneIds = await getDoneQuestions(userStore.userId, currentLevelId)
     allQuestions = allQuestions.filter(q => !doneIds.includes(q.id))
 
-    // 查询本关卡曾做错的题目（保留标签）
-    const wrongs = await getWrongAnswers(userStore.userId, levelId.value)
+    const wrongs = await getWrongAnswers(userStore.userId, currentLevelId)
     for (const w of wrongs) {
       wrongQuestionIds.value.add(w.question_id)
       doneQuestionIds.value.add(w.question_id)
     }
   }
 
-  // 如果所有题都做对了，显示提示
   if (allQuestions.length === 0) {
-    // 仍然调用 completeLevel 以解锁下一关
     if (userStore.userId) {
       const result: CompleteResponse = await completeLevel(
         userStore.userId,
-        levelId.value,
+        currentLevelId,
         0,
         0
       )
       userStore.hearts = result.hearts
       userStore.streakDays = result.streak_days
       if (result.passed && result.next_unlocked) {
-        userStore.unlockLevel(categoryId.value, result.next_unlocked)
+        userStore.unlockLevel(currentCategoryId, result.next_unlocked)
       }
       resultData.value = {
         passed: result.passed,
@@ -563,5 +577,12 @@ onMounted(async () => {
     questions.value = allQuestions
     loading.value = false
   }
+}
+
+onMounted(loadQuestions)
+
+// 路由变化时重新加载（支持"下一关"导航）
+watch(() => route.params.levelId, () => {
+  loadQuestions()
 })
 </script>
