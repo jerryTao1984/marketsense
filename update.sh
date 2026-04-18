@@ -1,7 +1,16 @@
 #!/bin/bash
 set -e
 
+APP_DIR="/opt/marketsense"
+
 echo "🦆 识盘鸭 - 更新服务"
+
+if [ ! -d "$APP_DIR" ]; then
+    echo "❌ 项目未部署，请先运行 deploy.sh 一键部署"
+    exit 1
+fi
+
+cd $APP_DIR
 
 # 拉取最新代码
 echo "📥 拉取最新代码..."
