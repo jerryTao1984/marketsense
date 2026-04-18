@@ -606,7 +606,17 @@ function isDoneQuestion(id: string | undefined) {
 }
 
 // 加载题目逻辑抽成函数，支持路由变化时重新加载
+let loadingTask: Promise<void> | null = null
 async function loadQuestions() {
+  const currentLevelId = route.params.levelId as string
+  const currentCategoryId = route.params.categoryId as string
+
+  // 防止并发加载
+  if (loadingTask) {
+    await loadingTask
+    return
+  }
+
   // 重置状态
   currentIndex.value = 0
   selected.value = ''
@@ -620,9 +630,6 @@ async function loadQuestions() {
   wrongQuestionIds.value.clear()
   doneQuestionIds.value.clear()
   loading.value = true
-
-  const currentLevelId = route.params.levelId as string
-  const currentCategoryId = route.params.categoryId as string
 
   let allQuestions = await getLevelQuestions(currentLevelId)
 
@@ -677,9 +684,17 @@ async function loadQuestions() {
     questions.value = allQuestions
     loading.value = false
   }
+  loadingTask = null
 }
 
 onMounted(loadQuestions)
+
+// 路由变化时重新加载（支持"下一关"导航）
+watch(() => route.params.levelId, async (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    loadQuestions()
+  }
+})
 
 // 路由变化时重新加载（支持"下一关"导航）
 watch(() => route.params.levelId, () => {
