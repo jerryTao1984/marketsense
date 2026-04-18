@@ -639,11 +639,26 @@ except Exception as e:
     print(f"⚠️  Failed to mount frontend: {e}")
 
 
+# ===== 数据库初始化 + 迁移（模块加载时执行） =====
+from init_db import init_db, seed_levels_and_questions
+
+init_db()
+
+# 数据为空时自动塞入题目
+try:
+    _conn = get_db()
+    _cnt = _conn.execute("SELECT COUNT(*) FROM levels").fetchone()[0]
+    _conn.close()
+    if _cnt == 0:
+        print("No levels found, seeding...")
+        seed_levels_and_questions()
+except Exception as e:
+    print(f"Seed check skipped: {e}")
+
+migrate_db()
+
+
 # ===== 本地开发 =====
 if __name__ == '__main__':
     import uvicorn
-    from init_db import init_db, seed_levels_and_questions
-    if not os.path.exists(DB_PATH):
-        init_db()
-        seed_levels_and_questions()
     uvicorn.run(app, host="0.0.0.0", port=8000)
