@@ -31,6 +31,23 @@ fi
 # 创建数据目录
 mkdir -p data
 
+# 配置 Docker 镜像加速（国内服务器）
+if ! sudo grep -q "registry-mirrors" /etc/docker/daemon.json 2>/dev/null; then
+    echo "🔧 配置 Docker 镜像加速器..."
+    sudo mkdir -p /etc/docker
+    sudo tee /etc/docker/daemon.json <<'DOCKER_EOF'
+{
+  "registry-mirrors": [
+    "https://docker.1ms.run",
+    "https://docker.ketches.cn"
+  ]
+}
+DOCKER_EOF
+    sudo systemctl daemon-reload
+    sudo systemctl restart docker
+    echo "✅ Docker 镜像加速配置完成"
+fi
+
 # 构建并启动
 echo "📦 构建镜像..."
 docker compose build --no-cache
