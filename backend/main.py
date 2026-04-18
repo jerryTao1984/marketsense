@@ -603,17 +603,6 @@ async def get_history(user_id: int, level_id: str = None):
     return results
 
 
-if __name__ == '__main__':
-    import uvicorn
-    # 初始化数据库
-    from init_db import init_db, seed_levels_and_questions
-    if not os.path.exists(DB_PATH):
-        init_db()
-        seed_levels_and_questions()
-
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
-
 # ===== 生产模式：FastAPI 直接 serve 前端静态文件 =====
 # Docker 部署时只需一个端口 8000
 try:
@@ -648,3 +637,13 @@ try:
         print("⚠️  Frontend dist not found, running in API-only mode")
 except Exception as e:
     print(f"⚠️  Failed to mount frontend: {e}")
+
+
+# ===== 本地开发 =====
+if __name__ == '__main__':
+    import uvicorn
+    from init_db import init_db, seed_levels_and_questions
+    if not os.path.exists(DB_PATH):
+        init_db()
+        seed_levels_and_questions()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
