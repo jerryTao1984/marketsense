@@ -4,6 +4,7 @@
 import sqlite3
 import json
 import os
+import sys
 import ssl
 import urllib.request
 import urllib.parse
@@ -13,7 +14,7 @@ from datetime import datetime, timedelta
 # 跳过 SSL 验证
 ssl._create_default_https_context = ssl._create_unverified_context
 
-API_KEY = "sk_2645c49d31e6769badc17b20758c91d506d0e532dba00ac8475a0364eb541d2a"
+API_KEY = os.environ.get("STOCKPILLAR_API_KEY", "sk_2645c49d31e6769badc17b20758c91d506d0e532dba00ac8475a0364eb541d2a")
 API_URL = "https://layercake.com.cn/stockpillar/api/skill/v1"
 # Docker 容器用 /data，本地开发用当前目录
 DB_PATH = os.environ.get("DB_PATH", "shipanya.db")
@@ -69,6 +70,9 @@ STOCKS = [
 
 
 def api_get(path, params=None):
+    if not API_KEY:
+        print("API error: STOCKPILLAR_API_KEY is not set")
+        return None
     url = f"{API_URL}/{path}"
     if params:
         url += "?" + urllib.parse.urlencode(params)
@@ -79,6 +83,15 @@ def api_get(path, params=None):
     except Exception as e:
         print(f"API error {path}: {e}")
         return None
+
+
+def kline_image_url(code, recent=False):
+    filename = f"kline_{code.replace('.', '_')}{'_20d' if recent else ''}.png"
+    file_path = os.path.join(OUTPUT_DIR, filename)
+    if os.path.isfile(file_path):
+        return f"/assets/kline/{filename}"
+    print(f"⚠️  Missing generated image for {code}: {filename}")
+    return None
 
 
 def calc_ma(prices, period):
@@ -266,7 +279,7 @@ def generate_questions():
         q_id += 1
         trend_dir = "上涨" if change_5d > 0 else "下跌" if change_5d < 0 else "持平"
         questions.append((
-            f"kg_q{q_id}", "predict", "text",
+            f"kg_q{q_id}", "P1", "text",
             f"{name}（{code}）最近 5 个交易日从 {closes[-5]:.2f} 元到 {latest_close:.2f} 元，"
             f"涨跌幅 {change_5d:+.1f}%，这期间走势是？",
             None,
@@ -380,7 +393,7 @@ def generate_questions():
                            f"短期方向不明确。")
 
         # 20日K线图作为题目配图
-        img_url = f"/assets/kline/kline_{code.replace('.', '_')}_20d.png"
+        img_url = kline_image_url(code, recent=True)
 
         questions.append((
             f"kg_q{q_id}", "P1", "image",
@@ -404,7 +417,7 @@ def generate_questions():
             dist_to_high = (high_20 - latest_close) / latest_close * 100
             dist_to_low = (latest_close - low_20) / latest_close * 100
 
-            img_url = f"/assets/kline/kline_{code.replace('.', '_')}_20d.png"
+            img_url = kline_image_url(code, recent=True)
 
             if dist_to_high < 3:
                 correct = "A"
@@ -436,7 +449,7 @@ def generate_questions():
         if ma20 and ma60:
             q_id += 1
             mid_trend = "MA20>MA60，中期偏多" if ma20 > ma60 else "MA20<MA60，中期偏空"
-            img_url = f"/assets/kline/kline_{code.replace('.', '_')}_20d.png"
+            img_url = kline_image_url(code, recent=True)
 
             questions.append((
                 f"kg_q{q_id}", "P2", "image",
@@ -488,9 +501,11 @@ if __name__ == "__main__":
         if len(questions) == 0:
             print("⚠️  没有生成任何题目，可能是 API 不可达或数据不足")
             print("   跳过题目生成，系统将使用 init_db 中的基础题目")
+            sys.exit(2)
         else:
             save_to_db(questions)
     except Exception as e:
         print(f"❌ 生成题目失败: {e}")
         traceback.print_exc()
         print("   跳过题目生成，系统将使用 init_db 中的基础题目")
+        sys.exit(1)

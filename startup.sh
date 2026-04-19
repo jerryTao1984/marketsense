@@ -4,6 +4,19 @@ set -e
 export DB_PATH="/data/shipanya.db"
 cd /app/backend
 
+run_optional_step() {
+  local label="$1"
+  shift
+  echo "=== ${label} ==="
+  if "$@"; then
+    echo "✓ ${label} succeeded"
+    return 0
+  fi
+  local code=$?
+  echo "⚠ ${label} failed with exit code ${code}"
+  return ${code}
+}
+
 # 1. 生成缺失的 K 线 SVG，避免 Docker 内静态资源 404
 echo "=== Step 1: Generate missing K-line SVG assets ==="
 python3 generate_missing_kline_svgs.py
@@ -26,13 +39,23 @@ conn.close()
 "
 
 # 4. 生成 K 线图片（PNG）
-echo "=== Step 4: Generate K-line images ==="
-python3 generate_kline_images.py || echo "Warning: K-line image generation failed, continuing anyway"
+run_optional_step "Step 4: Generate K-line images" python3 generate_kline_images.py || true
 
 # 5. 生成动态 K 线题目（含 image_url 指向生成的 PNG）
-echo "=== Step 5: Generate K-line questions from API ==="
-python3 generate_kline_questions.py || echo "Warning: K-line question generation failed, continuing anyway"
+run_optional_step "Step 5: Generate K-line questions from API" python3 generate_kline_questions.py || true
 
-# 6. 启动 FastAPI 服务
-echo "=== Step 6: Starting server ==="
+# 6. 归一化旧库里的脏数据，避免错误 level_id / 错误图片残留
+echo "=== Step 6: Normalize question data ==="
+python3 normalize_question_data.py
+
+# 7. 清理失效 image_url，避免前端渲染坏图
+echo "=== Step 7: Verify K-line assets and clear broken references ==="
+python3 verify_kline_assets.py --fix-db
+
+# 8. 打印题库摘要，方便从 docker logs 直接排查
+echo "=== Step 8: Report question summary ==="
+python3 report_question_summary.py
+
+# 9. 启动 FastAPI 服务
+echo "=== Step 9: Starting server ==="
 exec python3 main.py
