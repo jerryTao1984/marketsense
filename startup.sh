@@ -25,6 +25,12 @@ python3 generate_missing_kline_svgs.py
 echo "=== Step 2: Initialize database ==="
 python3 init_db.py
 
+echo "=== Step 2.5: Expand questions ==="
+run_optional_step "Expand questions 1" python3 expand_questions.py || true
+run_optional_step "Expand questions 2" python3 expand_questions_v2.py || true
+run_optional_step "Expand enhanced K-line questions" python3 expand_enhanced_kline.py || true
+run_optional_step "Expand money flow questions" python3 expand_moneyflow.py || true
+
 # 3. 修复已有 P1/P2/P3 题目的 broken image_url（旧记录引用了不存在的 SVG）
 echo "=== Step 3: Fix broken image URLs for P1/P2/P3 ==="
 python3 -c "
