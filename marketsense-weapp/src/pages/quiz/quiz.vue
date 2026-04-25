@@ -437,7 +437,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage } from '@dcloudio/uni-app'
 import { useUserStore } from '../../stores/user'
 import { getLevelQuestions, checkAnswer, completeLevel, getWrongAnswers, getDoneQuestions, getAttemptedQuestions, deductHeart as apiDeductHeart } from '../../api'
 import type { Question, CheckResponse, CompleteResponse } from '../../api'
@@ -676,5 +676,12 @@ onLoad((options: any) => {
   if (options.levelId) levelId.value = options.levelId
   
   loadQuestions()
+})
+
+onShareAppMessage(() => {
+  return {
+    title: `我在识盘鸭挑战了 ${categoryId.value} 关卡，快来一起学股票！`,
+    path: `/pages/quiz/quiz?categoryId=${categoryId.value}&levelId=${levelId.value}`
+  }
 })
 </script>

@@ -30,7 +30,17 @@
       
       <text class="tip">输入手机号即可登录，无需密码</text>
       
-      <!-- 未来可在此处添加微信一键登录按钮 -->
+      <view class="divider">
+        <text class="divider-text">或者</text>
+      </view>
+
+      <button 
+        class="wx-btn" 
+        @click="handleWxLogin"
+        :disabled="loading"
+      >
+        <text class="wx-icon">💬</text> 微信一键登录
+      </button>
     </view>
   </view>
 </template>
@@ -58,6 +68,21 @@ async function handleLogin() {
   } catch (e: any) {
     uni.showToast({
       title: e.message || '登录失败',
+      icon: 'none'
+    })
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleWxLogin() {
+  loading.value = true
+  try {
+    await userStore.loginWithWechat()
+    uni.reLaunch({ url: '/pages/index/index' })
+  } catch (e: any) {
+    uni.showToast({
+      title: e.message || '微信登录失败',
       icon: 'none'
     })
   } finally {
@@ -164,5 +189,47 @@ onLoad(() => {
   color: #999;
   font-size: 12px;
   margin-top: 16px;
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 24px 0;
+}
+.divider::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 1px;
+  background: #ebedf0;
+}
+.divider-text {
+  position: relative;
+  background: #fff;
+  padding: 0 12px;
+  color: #999;
+  font-size: 12px;
+}
+
+.wx-btn {
+  height: 44px;
+  line-height: 44px;
+  font-size: 16px;
+  background-color: #f2f2f2;
+  color: #333;
+  border-radius: 22px;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wx-btn::after {
+  border: none;
+}
+.wx-icon {
+  margin-right: 6px;
+  font-size: 18px;
 }
 </style>

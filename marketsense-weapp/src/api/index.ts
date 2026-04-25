@@ -134,6 +134,13 @@ export async function phoneLogin(phone: string): Promise<AuthResponse> {
   })
 }
 
+export async function wxLogin(code: string): Promise<AuthResponse> {
+  return request<AuthResponse>('/user/wx-login', {
+    method: 'POST',
+    data: { code },
+  })
+}
+
 export async function getUserProfile(userId: number): Promise<UserProfile> {
   return request<UserProfile>(`/user/profile?user_id=${userId}`)
 }

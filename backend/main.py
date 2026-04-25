@@ -92,6 +92,10 @@ class PhoneLogin(BaseModel):
     phone: str
 
 
+class WxLogin(BaseModel):
+    code: str
+
+
 class AnswerSubmit(BaseModel):
     question_id: str
     user_answer: str
@@ -178,6 +182,72 @@ async def phone_login(data: PhoneLogin):
         cursor.execute(
             "INSERT INTO users (phone, nickname) VALUES (?, ?)",
             (data.phone, nickname)
+        )
+        conn.commit()
+        user_id = cursor.lastrowid
+    else:
+        user_id = user["id"]
+
+    cursor.execute("SELECT hearts, streak_days, nickname FROM users WHERE id = ?", (user_id,))
+    user_data = cursor.fetchone()
+
+    cursor.execute("""
+        SELECT level_id FROM user_progress WHERE user_id = ? AND is_completed = 1
+    """, (user_id,))
+    completed = [row["level_id"] for row in cursor.fetchall()]
+
+    unlocked = get_unlocked_levels(cursor, user_id, completed)
+    conn.close()
+
+    return {
+        "user_id": user_id,
+        "hearts": user_data["hearts"],
+        "streak_days": user_data["streak_days"],
+        "nickname": user_data["nickname"],
+        "unlocked_levels": unlocked,
+    }
+
+
+# ===== 1c. 微信小程序登录 =====
+@app.post("/api/v1/user/wx-login")
+async def wx_login(data: WxLogin):
+    """微信小程序登录：通过 code 换取 openid"""
+    if not data.code:
+        raise HTTPException(status_code=400, detail="code 不能为空")
+
+    import urllib.request
+    import urllib.parse
+    
+    appid = os.environ.get('WX_APPID', '')
+    secret = os.environ.get('WX_SECRET', '')
+    
+    openid = data.code # 本地调试默认用 code 作为 openid
+    
+    if appid and secret:
+        url = f"https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={data.code}&grant_type=authorization_code"
+        try:
+            req = urllib.request.Request(url)
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode())
+                if 'openid' in res_data:
+                    openid = res_data['openid']
+                else:
+                    raise HTTPException(status_code=400, detail=f"微信登录失败: {res_data.get('errmsg')}")
+        except Exception as e:
+            print("WX Login Request Failed:", e)
+            
+    conn = get_db()
+    cursor = conn.cursor()
+
+    # 此处我们复用 device_id 作为 openid 的存储字段
+    cursor.execute("SELECT id FROM users WHERE device_id = ?", (openid,))
+    user = cursor.fetchone()
+
+    if not user:
+        nickname = "微信用户"
+        cursor.execute(
+            "INSERT INTO users (device_id, nickname) VALUES (?, ?)",
+            (openid, nickname)
         )
         conn.commit()
         user_id = cursor.lastrowid

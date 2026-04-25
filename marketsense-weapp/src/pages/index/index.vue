@@ -158,7 +158,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onLoad, onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { useUserStore } from '../../stores/user'
 import { getCategories, type Category } from '../../api'
 
@@ -210,6 +210,19 @@ onLoad(async () => {
     const cats = await getCategories()
     categories.value = cats
     loading.value = false
+  }
+})
+
+onShareAppMessage(() => {
+  return {
+    title: '识盘鸭 - 你的股票学习小助手',
+    path: '/pages/index/index'
+  }
+})
+
+onShareTimeline(() => {
+  return {
+    title: '识盘鸭 - 你的股票学习小助手'
   }
 })
 </script>

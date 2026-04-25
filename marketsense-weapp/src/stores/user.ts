@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { authSync, phoneLogin, refillHearts as apiRefillHearts, getUserProfile } from '../api'
+import { authSync, phoneLogin, wxLogin, refillHearts as apiRefillHearts, getUserProfile } from '../api'
 
 const LS_PHONE = 'user_phone'
 const LS_USER_ID = 'user_id'
@@ -50,6 +50,38 @@ export const useUserStore = defineStore('user', () => {
     uni.setStorageSync(LS_PHONE, phoneNumber)
     uni.setStorageSync(LS_USER_ID, String(data.user_id))
     saveUnlockedLevels()
+  }
+
+  async function loginWithWechat() {
+    return new Promise((resolve, reject) => {
+      uni.login({
+        provider: 'weixin',
+        success: async (loginRes) => {
+          if (loginRes.code) {
+            try {
+              const data = await wxLogin(loginRes.code)
+              userId.value = data.user_id
+              hearts.value = data.hearts
+              streakDays.value = data.streak_days
+              unlockedLevels.value = data.unlocked_levels
+              nickname.value = data.nickname || '微信用户'
+              isLoggedIn.value = true
+              uni.setStorageSync(LS_USER_ID, String(data.user_id))
+              saveUnlockedLevels()
+              resolve(data)
+            } catch (err) {
+              console.error('WeChat login failed:', err)
+              reject(err)
+            }
+          } else {
+            reject(new Error('获取微信登录态失败'))
+          }
+        },
+        fail: (err) => {
+          reject(err)
+        }
+      })
+    })
   }
 
   // 从 本地缓存 恢复登录态（同步，用于路由守卫和页面刷新）
@@ -141,7 +173,7 @@ export const useUserStore = defineStore('user', () => {
   return {
     userId, hearts, maxHearts, streakDays, unlockedLevels,
     phone, nickname, isLoggedIn,
-    hasHeart, sync, loginWithPhone, restoreLogin, refreshUserData, logout,
+    hasHeart, sync, loginWithPhone, loginWithWechat, restoreLogin, refreshUserData, logout,
     deductHeart, refillHearts, resetHearts,
     addStreak, unlockLevel, isLevelUnlocked,
   }
